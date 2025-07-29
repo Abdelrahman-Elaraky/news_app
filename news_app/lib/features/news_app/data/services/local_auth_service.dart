@@ -165,9 +165,6 @@ class LocalAuthService {
     final now = DateTime.now().millisecondsSinceEpoch;
     if (now > expiry) return false;
 
-    // Optional: If you want to expire session based on inactivity (e.g., 30 mins)
-    // final inactivityTimeout = Duration(minutes: 30).inMilliseconds;
-    // if (now - lastActivity > inactivityTimeout) return false;
 
     return true;
   }
@@ -178,7 +175,7 @@ class LocalAuthService {
     await prefs.setInt(_lastActivityKey, DateTime.now().millisecondsSinceEpoch);
   }
 
-  /// Check if "Remember Me" was enabled at login
+
   Future<bool> isRememberMe() async {
     final prefs = await _prefs;
     return prefs.getBool(_rememberMeKey) ?? false;

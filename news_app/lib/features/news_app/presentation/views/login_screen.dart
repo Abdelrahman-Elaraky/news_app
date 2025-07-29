@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_text_form_field.dart';
 import '../widgets/password_form_field.dart';
 import '../../utils/validation_utils.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,12 +42,17 @@ class _LoginScreenState extends State<LoginScreen> {
         _formData['rememberMe'] = true;
       });
 
-      // Optional: Auto login if credentials remembered
+      // Auto login if credentials remembered
       final savedEmail = prefs.getString('registeredEmail');
       final savedPassword = prefs.getString('registeredPassword');
       if (email == savedEmail && password == savedPassword) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.pushReplacementNamed(context, '/home');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HomeScreen(email: email),
+            ),
+          );
         });
       }
     }
@@ -67,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final savedEmail = prefs.getString('registeredEmail');
     final savedPassword = prefs.getString('registeredPassword');
 
-    await Future.delayed(const Duration(seconds: 1)); // simulate server
+    await Future.delayed(const Duration(seconds: 1)); // simulate server delay
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -88,7 +94,12 @@ class _LoginScreenState extends State<LoginScreen> {
         const SnackBar(content: Text('Login successful')),
       );
 
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(email: _formData['email']),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid credentials')),
