@@ -2,53 +2,65 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({Key? key}) : super(key: key);
+  const ForgotPasswordScreen({super.key});
 
   @override
-  _ForgotPasswordScreenState createState() => _ForgotPasswordScreenState();
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _formKey = GlobalKey<FormState>();
-  String? _email;
+  final _formKeyEmail = GlobalKey<FormState>();
+  final _formKeySecurity = GlobalKey<FormState>();
+
+  String? _emailInput;
   String? _selectedQuestion;
-  String? _answer;
+  String? _answerInput;
   bool _emailValidated = false;
   bool _answerVerified = false;
   bool _isLoading = false;
 
+  late String? _savedEmail;
+  late String? _savedQuestion;
+  late String? _savedAnswer;
+
   final List<String> _securityQuestions = [
-    "What's your mother's maiden name?",
-    "What was your first pet's name?",
-    "What city were you born in?",
+    "What’s your mother’s maiden name?",
+    "What was the name of your first pet?",
+    "In what city were you born?",
   ];
 
-  Future<bool> _validateEmailExists(String email) async {
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString('registeredEmail');
-    return email.trim() == savedEmail;
+    setState(() {
+      _savedEmail = prefs.getString('registeredEmail');
+      _savedQuestion = prefs.getString('securityQuestion');
+      _savedAnswer = prefs.getString('securityAnswer');
+    });
   }
 
-  Future<bool> _verifyAnswer(String email, String question, String answer) async {
-    // Replace this with actual security question verification logic
-    await Future.delayed(const Duration(seconds: 1));
-    return answer.trim().toLowerCase() == 'flutter';
-  }
-
-  void _submitEmail() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+  Future<void> _validateEmail() async {
+    final form = _formKeyEmail.currentState!;
+    if (form.validate()) {
+      form.save();
 
       setState(() => _isLoading = true);
 
-      final exists = await _validateEmailExists(_email!.trim());
+      await Future.delayed(const Duration(milliseconds: 500)); // simulate delay
+
+      final valid = (_emailInput?.trim().toLowerCase() == _savedEmail?.toLowerCase());
 
       setState(() {
         _isLoading = false;
-        _emailValidated = exists;
+        _emailValidated = valid;
       });
 
-      if (!exists) {
+      if (!valid) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Email not found')),
         );
@@ -56,34 +68,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
-  void _submitAnswer() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+  Future<void> _verifySecurityAnswer() async {
+    final form = _formKeySecurity.currentState!;
+    if (form.validate()) {
+      form.save();
 
-      if (_selectedQuestion == null || _answer == null) {
+      if (_selectedQuestion == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a question and provide an answer')),
+          const SnackBar(content: Text('Please select your security question')),
         );
         return;
       }
 
       setState(() => _isLoading = true);
 
-      final verified = await _verifyAnswer(_email!, _selectedQuestion!, _answer!);
+      await Future.delayed(const Duration(milliseconds: 500)); // simulate delay
+
+      final answerMatches = _savedAnswer != null &&
+          _answerInput != null &&
+          _answerInput!.trim().toLowerCase() == _savedAnswer;
+
+      final questionMatches = _selectedQuestion == _savedQuestion;
 
       setState(() {
         _isLoading = false;
-        _answerVerified = verified;
+        _answerVerified = (answerMatches && questionMatches);
       });
 
-      if (verified) {
+      if (_answerVerified) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Answer verified! You can reset your password now.')),
+          const SnackBar(content: Text('Verification successful! You can reset your password now.')),
         );
-        // Navigate or reset password logic here
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Incorrect answer')),
+          const SnackBar(content: Text('Incorrect security question or answer')),
         );
       }
     }
@@ -94,73 +112,100 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Forgot Password')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _emailValidated
-                ? _answerVerified
-                    ? const Center(child: Text('Password reset successful!'))
-                    : Form(
-                        key: _formKey,
+            : !_emailValidated
+                ? Form(
+                    key: _formKeyEmail,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          decoration: const InputDecoration(labelText: 'Enter your registered email'),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return 'Email is required';
+                            }
+                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(val.trim())) {
+                              return 'Invalid email format';
+                            }
+                            return null;
+                          },
+                          onSaved: (val) => _emailInput = val?.trim(),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _validateEmail,
+                          child: const Text('Next'),
+                        ),
+                      ],
+                    ),
+                  )
+                : !_answerVerified
+                    ? Form(
+                        key: _formKeySecurity,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             DropdownButtonFormField<String>(
                               decoration: const InputDecoration(labelText: 'Security Question'),
+                              value: _selectedQuestion,
                               items: _securityQuestions
                                   .map((q) => DropdownMenuItem(value: q, child: Text(q)))
                                   .toList(),
-                              value: _selectedQuestion,
                               onChanged: (val) => setState(() => _selectedQuestion = val),
                               validator: (val) =>
-                                  val == null || val.isEmpty ? 'Please select a question' : null,
+                                  val == null || val.isEmpty ? 'Please select your security question' : null,
                             ),
                             TextFormField(
                               decoration: const InputDecoration(labelText: 'Answer'),
-                              onSaved: (val) => _answer = val?.trim(),
-                              validator: (val) =>
-                                  val == null || val.isEmpty ? 'Answer is required' : null,
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'Answer is required';
+                                }
+                                return null;
+                              },
+                              onSaved: (val) => _answerInput = val?.trim(),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 20),
                             ElevatedButton(
-                              onPressed: _submitAnswer,
+                              onPressed: _verifySecurityAnswer,
                               child: const Text('Verify'),
                             ),
                             TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Back to login'),
-                            ),
+                              onPressed: () {
+                                setState(() {
+                                  _emailValidated = false;
+                                  _answerVerified = false;
+                                  _selectedQuestion = null;
+                                  _answerInput = null;
+                                  _emailInput = null;
+                                });
+                              },
+                              child: const Text('Back'),
+                            )
                           ],
                         ),
                       )
-                : Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextFormField(
-                          decoration: const InputDecoration(labelText: 'Your email address'),
-                          keyboardType: TextInputType.emailAddress,
-                          onSaved: (val) => _email = val?.trim(),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                .hasMatch(val.trim())) {
-                              return 'Invalid email format';
-                            }
-                            return null;
-                          },
+                    : Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.check_circle, color: Colors.green, size: 80),
+                            const SizedBox(height: 20),
+                            const Text('Verification complete! Reset your password.'),
+                            const SizedBox(height: 20),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).pushReplacementNamed('/login');
+                              },
+                              child: const Text('Back to Login'),
+                            )
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _submitEmail,
-                          child: const Text('Next'),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
       ),
     );
   }
