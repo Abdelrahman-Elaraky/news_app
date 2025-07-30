@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_text_form_field.dart';
 import '../widgets/password_form_field.dart';
 import '../../utils/validation_utils.dart';
-import 'home_screen.dart';
+import '../views/home_screen.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

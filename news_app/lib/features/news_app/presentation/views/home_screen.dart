@@ -4,10 +4,16 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/custom_app_bar.dart';
+import '../widgets/category_bar.dart';
+import '../widgets/error_empty_state.dart';
+
 import '../cubit/news_cubit.dart';
 import '../cubit/news_state.dart';
+
 import '../../data/models/article_model.dart';
-import '../widgets/error_empty_state.dart';
+import '../../data/models/category_model.dart';
+import 'news_detail_screen.dart';
+import 'bookmarks_screen.dart'; // ✅ Import bookmarks screen
 
 class HomeScreen extends StatefulWidget {
   final String email;
@@ -15,31 +21,32 @@ class HomeScreen extends StatefulWidget {
 
   const HomeScreen({super.key, required this.email, this.username});
 
+  String get displayName =>
+      username?.trim().isNotEmpty == true ? username! : email.split('@')[0];
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  late final ScrollController _scrollController;
+  late final NewsCubit _newsCubit;
 
-  late ScrollController _scrollController;
-  late NewsCubit _newsCubit;
+  List<Category> categories = Category.defaultCategories();
   DateTime? _lastRefreshedAt;
   int bookmarkedCount = 0;
 
-  String get displayName =>
-      widget.username?.trim().isNotEmpty == true
-          ? widget.username!
-          : widget.email.split('@')[0];
+  Category get selectedCategory =>
+      categories.firstWhere((c) => c.isSelected, orElse: () => categories[0]);
 
   @override
   void initState() {
     super.initState();
     _newsCubit = context.read<NewsCubit>();
-    _newsCubit.fetchTopHeadlines();
+    _newsCubit.fetchByCategory(selectedCategory.id);
 
     _scrollController = ScrollController()..addListener(_onScroll);
-
     _loadBookmarkCount();
   }
 
@@ -57,11 +64,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
+  Future<void> _handleRefresh() async {
+    await _newsCubit.fetchByCategory(selectedCategory.id);
+    if (mounted) {
+      setState(() => _lastRefreshedAt = DateTime.now());
+    }
+    await _loadBookmarkCount();
+
+    // Optional SnackBar for user feedback
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(content: Text('News refreshed for ${selectedCategory.name}')),
+    // );
   }
 
   Future<void> _logout() async {
@@ -72,23 +85,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/login');
-  }
-
-  Future<void> _handleRefresh() async {
-    try {
-      await _newsCubit.refreshNews();
-      setState(() {
-        _lastRefreshedAt = DateTime.now();
-      });
-      // Refresh bookmark count as well, in case of bookmark changes
-      await _loadBookmarkCount();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Refresh failed: $e')),
-        );
-      }
-    }
   }
 
   Widget buildDrawerItem({
@@ -103,6 +99,13 @@ class _HomeScreenState extends State<HomeScreen> {
       trailing: trailing,
       onTap: onTap,
     );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -123,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                displayName,
+                widget.displayName,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -142,8 +145,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: const TextStyle(fontSize: 12, color: Colors.white),
                   ),
                 ),
-                onTap: () {
-                  // TODO: Navigate to bookmarks screen
+                onTap: () async {
+                  Navigator.pop(context); // close drawer first
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BookmarksScreen()),
+                  );
+                  _loadBookmarkCount(); // update count on return
                 },
               ),
               buildDrawerItem(
@@ -156,16 +164,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       appBar: CustomAppBar(
-        username: displayName,
+        username: widget.displayName,
         notificationCount: 3,
         onDrawerTap: () => _scaffoldKey.currentState?.openDrawer(),
         onSearchTap: () {
-          // TODO: Implement search functionality
+          // TODO: Search
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Implement search or other action
+          // TODO: Search action
         },
         child: const Icon(Icons.search),
       ),
@@ -176,7 +184,6 @@ class _HomeScreenState extends State<HomeScreen> {
               SnackBar(content: Text('Error: ${state.message}')),
             );
           }
-          // Update bookmarks count if necessary
           if (state is NewsLoaded) {
             _loadBookmarkCount();
           }
@@ -187,7 +194,9 @@ class _HomeScreenState extends State<HomeScreen> {
               image: 'assets/images/empty_state.png',
               message: 'No articles found. Try again later!',
               buttonText: 'Refresh',
-              onRetry: () => _newsCubit.fetchTopHeadlines(),
+              onRetry: () {
+                _newsCubit.fetchByCategory(selectedCategory.id);
+              },
             );
           }
 
@@ -200,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Welcome back, $displayName',
+                  'Welcome back, ${widget.displayName}',
                   style: theme.textTheme.headlineSmall,
                 ),
               ),
@@ -212,6 +221,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
                   ),
                 ),
+              CategoryBar(
+                categories: categories,
+                onCategoryTap: (id) {
+                  setState(() {
+                    for (var c in categories) {
+                      c.isSelected = c.id == id;
+                    }
+                  });
+                  _newsCubit.fetchByCategory(id);
+                },
+              ),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _handleRefresh,
@@ -233,16 +253,37 @@ class _HomeScreenState extends State<HomeScreen> {
                       final article = articles[index];
                       return ListTile(
                         title: Text(article.title),
-                        subtitle: Text(article.description ?? ''),
+                        subtitle: Text(
+                          article.description.isNotEmpty
+                              ? article.description
+                              : 'No description available',
+                        ),
                         leading: article.imageUrl != null
                             ? Image.network(
                                 article.imageUrl!,
                                 width: 100,
+                                height: 60,
                                 fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const Icon(Icons.broken_image),
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const SizedBox(
+                                    width: 100,
+                                    height: 60,
+                                    child: Center(
+                                        child: CircularProgressIndicator(strokeWidth: 2)),
+                                  );
+                                },
                               )
-                            : null,
+                            : const Icon(Icons.image_not_supported, size: 60),
                         onTap: () {
-                          // TODO: Open article detail page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => NewsDetailScreen(article: article),
+                            ),
+                          );
                         },
                       );
                     },

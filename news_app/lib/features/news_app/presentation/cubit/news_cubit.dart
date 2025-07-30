@@ -13,16 +13,21 @@ class NewsCubit extends Cubit<NewsState> {
   int _page = 1;
   bool _isLoadingMore = false;
 
-  /// Load top headlines, with offline fallback
+  String? _currentCategory;
+  String? _searchQuery;
+
+  /// Load latest top headlines (page 1)
   Future<void> fetchTopHeadlines() async {
+    _searchQuery = null;
+    _currentCategory = null;
     emit(NewsLoading());
 
     try {
-      // Try showing cached data first
-      final cached = await newsRepository.fetchTopHeadlines(page: 1);
+      // Emit cached articles if available (offline mode)
+      final cached = await newsRepository.getCachedArticles();
       if (cached.isNotEmpty) emit(NewsOffline(cached));
 
-      // Then fetch fresh data
+      // Fetch fresh top headlines from API
       final fresh = await newsRepository.fetchTopHeadlines(page: 1);
       _articles
         ..clear()
@@ -30,16 +35,18 @@ class NewsCubit extends Cubit<NewsState> {
       _page = 1;
       _hasMore = fresh.length >= NewsRepository.pageSize;
 
-      emit(NewsLoaded(_articles, _hasMore));
+      emit(NewsLoaded(List.unmodifiable(_articles), _hasMore));
     } catch (e) {
       emit(_articles.isEmpty
           ? NewsError(e.toString(), true)
-          : NewsLoaded(_articles, _hasMore));
+          : NewsLoaded(List.unmodifiable(_articles), _hasMore));
     }
   }
 
-  /// Fetch news for a specific category
+  /// Fetch articles by a specific category (page 1)
   Future<void> fetchByCategory(String category) async {
+    _currentCategory = category;
+    _searchQuery = null;
     emit(NewsLoading());
 
     try {
@@ -50,15 +57,35 @@ class NewsCubit extends Cubit<NewsState> {
       _page = 1;
       _hasMore = result.length >= NewsRepository.pageSize;
 
-      emit(NewsLoaded(_articles, _hasMore));
+      emit(NewsLoaded(List.unmodifiable(_articles), _hasMore));
     } catch (e) {
       emit(_articles.isEmpty
           ? NewsError(e.toString(), true)
-          : NewsLoaded(_articles, _hasMore));
+          : NewsLoaded(List.unmodifiable(_articles), _hasMore));
     }
   }
 
-  /// Load more articles for pagination
+  /// Search articles by a query (page 1)
+  Future<void> searchArticles(String query) async {
+    _searchQuery = query;
+    _currentCategory = null;
+    emit(NewsLoading());
+
+    try {
+      final results = await newsRepository.searchNews(query, page: 1);
+      _articles
+        ..clear()
+        ..addAll(results);
+      _page = 1;
+      _hasMore = results.length >= NewsRepository.pageSize;
+
+      emit(NewsLoaded(List.unmodifiable(_articles), _hasMore));
+    } catch (e) {
+      emit(NewsError(e.toString(), true));
+    }
+  }
+
+  /// Load next page articles based on current filters/search
   Future<void> loadMoreArticles() async {
     if (!_hasMore || _isLoadingMore) return;
 
@@ -66,47 +93,78 @@ class NewsCubit extends Cubit<NewsState> {
     _page += 1;
 
     try {
-      final more = await newsRepository.fetchTopHeadlines(page: _page);
+      final more = _currentCategory != null
+          ? await newsRepository.getNewsByCategory(_currentCategory!, page: _page)
+          : _searchQuery != null
+              ? await newsRepository.searchNews(_searchQuery!, page: _page)
+              : await newsRepository.fetchTopHeadlines(page: _page);
+
       _articles.addAll(more);
       _hasMore = more.length >= NewsRepository.pageSize;
 
-      emit(NewsLoaded(_articles, _hasMore));
+      emit(NewsLoaded(List.unmodifiable(_articles), _hasMore));
     } catch (e) {
+      _page -= 1;
       emit(NewsError(e.toString(), false));
     } finally {
       _isLoadingMore = false;
     }
   }
 
-  /// Pull-to-refresh from the top
+  /// Refresh current list (pull-to-refresh)
   Future<void> refreshNews() async {
     _page = 1;
     emit(NewsRefreshing());
 
     try {
-      final refreshed = await newsRepository.fetchTopHeadlines(page: 1);
+      final refreshed = _currentCategory != null
+          ? await newsRepository.getNewsByCategory(_currentCategory!, page: 1)
+          : _searchQuery != null
+              ? await newsRepository.searchNews(_searchQuery!, page: 1)
+              : await newsRepository.fetchTopHeadlines(page: 1);
+
       _articles
         ..clear()
         ..addAll(refreshed);
       _hasMore = refreshed.length >= NewsRepository.pageSize;
 
-      emit(NewsLoaded(_articles, _hasMore));
+      emit(NewsLoaded(List.unmodifiable(_articles), _hasMore));
     } catch (e) {
       emit(NewsError(e.toString(), true));
     }
   }
 
-  /// Bookmark or unbookmark an article
+  /// Toggle bookmark status of an article
   Future<void> toggleBookmark(Article article) async {
     try {
-      await newsRepository.bookmarkArticle(article);
+      final isBookmarked = article.isBookmarked;
+      final updatedArticle = article.copyWith(isBookmarked: !isBookmarked);
+
+      if (!isBookmarked) {
+        await newsRepository.bookmarkArticle(updatedArticle);
+      } else {
+        await newsRepository.removeBookmark(updatedArticle);
+      }
+
+      // Update article list and emit new state
+      final index = _articles.indexWhere((a) => a.id == article.id);
+      if (index != -1) {
+        _articles[index] = updatedArticle;
+        emit(NewsLoaded(List.unmodifiable(_articles), _hasMore));
+      }
     } catch (e) {
       emit(NewsError('Bookmark failed: ${e.toString()}', false));
     }
   }
 
-  /// Get all bookmarked articles
-  Future<List<Article>> getBookmarkedArticles() {
+  /// Get list of bookmarked articles
+  Future<List<Article>> getBookmarkedArticles() async {
     return newsRepository.getBookmarkedArticles();
+  }
+
+  /// Check if an article is bookmarked
+  Future<bool> isBookmarked(Article article) async {
+    final bookmarks = await getBookmarkedArticles();
+    return bookmarks.any((a) => a.url == article.url);
   }
 }

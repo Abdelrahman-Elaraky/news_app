@@ -1,8 +1,7 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/article_model.dart';
 
-
-// Base abstract state class
+/// Base abstract state class
 abstract class NewsState extends Equatable {
   const NewsState();
 
@@ -10,13 +9,17 @@ abstract class NewsState extends Equatable {
   List<Object?> get props => [];
 }
 
-// Before any data loaded
-class NewsInitial extends NewsState {}
+/// Before any data loaded
+class NewsInitial extends NewsState {
+  const NewsInitial();
+}
 
-// During API calls
-class NewsLoading extends NewsState {}
+/// During API calls
+class NewsLoading extends NewsState {
+  const NewsLoading();
+}
 
-// Data loaded successfully
+/// Data loaded successfully
 class NewsLoaded extends NewsState {
   final List<Article> articles;
   final bool hasMore;
@@ -27,7 +30,7 @@ class NewsLoaded extends NewsState {
   List<Object?> get props => [articles, hasMore];
 }
 
-// Error state with message and retry option flag
+/// Error state with message and retry option flag
 class NewsError extends NewsState {
   final String message;
   final bool canRetry;
@@ -38,7 +41,7 @@ class NewsError extends NewsState {
   List<Object?> get props => [message, canRetry];
 }
 
-// No articles found
+/// No articles found
 class NewsEmpty extends NewsState {
   final String message;
 
@@ -48,7 +51,7 @@ class NewsEmpty extends NewsState {
   List<Object?> get props => [message];
 }
 
-// Offline cached data
+/// Offline cached data
 class NewsOffline extends NewsState {
   final List<Article> cachedArticles;
 
@@ -58,5 +61,10 @@ class NewsOffline extends NewsState {
   List<Object?> get props => [cachedArticles];
 }
 
-// Pull-to-refresh state
-class NewsRefreshing extends NewsState {}
+/// Pull-to-refresh state
+class NewsRefreshing extends NewsState {
+  const NewsRefreshing();
+
+  @override
+  List<Object?> get props => [];
+}

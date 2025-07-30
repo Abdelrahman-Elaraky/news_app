@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
 
 class Article {
   final String id;
@@ -14,7 +15,7 @@ class Article {
   final bool isBookmarked;
 
   Article({
-    required this.id,
+    String? id,
     required this.title,
     required this.description,
     required this.content,
@@ -25,18 +26,18 @@ class Article {
     required this.url,
     required this.category,
     this.isBookmarked = false,
-  });
+  }) : id = id ?? const Uuid().v4();
 
-  // fromJson factory constructor
+  /// Creates an Article instance from a JSON map
   factory Article.fromJson(Map<String, dynamic> json) {
     return Article(
-      id: json['id'] ?? '', // Some APIs might not provide id
+      id: json['id'] ?? const Uuid().v4(),
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       content: json['content'] ?? '',
-      imageUrl: json['urlToImage'], // Nullable
+      imageUrl: json['urlToImage'] ?? json['imageUrl'],
       publishedAt: DateTime.tryParse(json['publishedAt'] ?? '') ?? DateTime.now(),
-      source: json['source'] != null ? json['source']['name'] ?? '' : '',
+      source: json['source'] is Map ? json['source']['name'] ?? '' : json['source'] ?? '',
       author: json['author'],
       url: json['url'] ?? '',
       category: json['category'] ?? '',
@@ -44,35 +45,35 @@ class Article {
     );
   }
 
-  // toJson method for caching or serialization
+  /// Converts the Article instance to a JSON map
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'title': title,
       'description': description,
       'content': content,
-      'urlToImage': imageUrl,
+      'urlToImage': imageUrl ?? '',
       'publishedAt': publishedAt.toIso8601String(),
       'source': {'name': source},
-      'author': author,
+      'author': author ?? '',
       'url': url,
       'category': category,
       'isBookmarked': isBookmarked,
     };
   }
 
-  // Encode list of articles to JSON string
+  /// Encodes a list of Article objects to a JSON string
   static String encodeList(List<Article> articles) => json.encode(
         articles.map<Map<String, dynamic>>((article) => article.toJson()).toList(),
       );
 
-  // Decode JSON string to list of articles
+  /// Decodes a JSON string to a list of Article objects
   static List<Article> decodeList(String articlesJson) =>
       (json.decode(articlesJson) as List<dynamic>)
           .map<Article>((item) => Article.fromJson(item))
           .toList();
 
-  // copyWith method for updating properties
+  /// Creates a copy of this Article with optional new values
   Article copyWith({
     String? id,
     String? title,
@@ -105,4 +106,12 @@ class Article {
   String toString() {
     return 'Article{id: $id, title: $title, publishedAt: $publishedAt, source: $source, isBookmarked: $isBookmarked}';
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Article && runtimeType == other.runtimeType && url == other.url;
+
+  @override
+  int get hashCode => url.hashCode;
 }

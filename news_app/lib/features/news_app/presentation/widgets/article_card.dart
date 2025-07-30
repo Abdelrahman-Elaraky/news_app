@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-
 import '../../data/models/article_model.dart';
 
 class ArticleCard extends StatefulWidget {
@@ -41,40 +40,36 @@ class _ArticleCardState extends State<ArticleCard> {
 
     return GestureDetector(
       onTap: widget.onTap,
-      onLongPress: () {
-        showModalBottomSheet(
-          context: context,
-          builder: (_) => ListTile(
-            leading: const Icon(Icons.bookmark),
-            title: const Text('Save to bookmarks'),
-            onTap: () {
-              Navigator.pop(context);
-              if (mounted) {
-                setState(() => isBookmarked = !isBookmarked);
-              }
-            },
-          ),
-        );
-      },
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 3,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (article.imageUrl != null && article.imageUrl!.isNotEmpty)
-              Hero(
-                tag: article.imageUrl!,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Image.network(
-                    article.imageUrl!,
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Image.network(
+                  article.imageUrl!,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
                     height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.broken_image, size: 48),
+                    color: Colors.grey.shade300,
+                    child: const Icon(Icons.broken_image, size: 48),
                   ),
                 ),
               ),
@@ -99,7 +94,6 @@ class _ArticleCardState extends State<ArticleCard> {
                     ),
                   const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       if (article.category != null && article.category!.isNotEmpty)
                         GestureDetector(
@@ -109,6 +103,7 @@ class _ArticleCardState extends State<ArticleCard> {
                             backgroundColor: Colors.blue.shade50,
                           ),
                         ),
+                      const Spacer(),
                       Text(
                         readingTimeEstimate,
                         style: const TextStyle(fontSize: 12, color: Colors.grey),
@@ -117,44 +112,45 @@ class _ArticleCardState extends State<ArticleCard> {
                   ),
                   const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (article.source != null && article.source!.isNotEmpty)
-                            Text(
-                              article.source!,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                            ),
-                          Text(
-                            formattedDate,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                        ],
+                      if (article.source != null && article.source!.isNotEmpty)
+                        Text(
+                          article.source!,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      const Spacer(),
+                      Text(
+                        formattedDate,
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
                       ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                              color: isBookmarked ? Colors.blue : null,
-                            ),
-                            onPressed: () {
-                              setState(() => isBookmarked = !isBookmarked);
-                            },
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: IconButton(
+                          key: ValueKey(isBookmarked),
+                          icon: Icon(
+                            isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                            color: isBookmarked ? Colors.blue : Colors.grey,
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.share),
-                            onPressed: () async {
-                              final title = article.title;
-                              final url = article.url;
-                              if (title.isNotEmpty && url != null && url.isNotEmpty) {
-                                await Share.share('$title\n$url');
-                              }
-                            },
-                          ),
-                        ],
+                          onPressed: () {
+                            setState(() => isBookmarked = !isBookmarked);
+                          },
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.share),
+                        onPressed: () async {
+                          final title = article.title;
+                          final url = article.url;
+                          if (title.isNotEmpty && url != null && url.isNotEmpty) {
+                            await Share.share('$title\n$url');
+                          }
+                        },
                       ),
                     ],
                   ),
