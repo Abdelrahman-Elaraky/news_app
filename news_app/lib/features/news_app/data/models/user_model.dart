@@ -21,7 +21,7 @@ class User {
     this.phoneNumber,
     this.dateOfBirth,
     this.profileImage,
-     this.createdAt,
+    this.createdAt,
     this.lastLoginAt,
   });
 
@@ -42,14 +42,13 @@ class User {
       'phoneNumber': phoneNumber,
       'dateOfBirth': dateOfBirth?.toIso8601String(),
       'profileImage': profileImage,
-      // 'createdAt': createdAt.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
       'lastLoginAt': lastLoginAt?.toIso8601String(),
     };
   }
 
   /// Create User from JSON string (e.g., from SharedPreferences)
-  factory User.fromJson(String source) =>
-      User.fromMap(json.decode(source));
+  factory User.fromJson(String source) => User.fromMap(json.decode(source));
 
   /// Create User from a Map
   factory User.fromMap(Map<String, dynamic> map) {
@@ -64,7 +63,27 @@ class User {
           ? DateTime.parse(map['dateOfBirth'])
           : null,
       profileImage: map['profileImage'],
-    
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : null,
+      lastLoginAt: map['lastLoginAt'] != null
+          ? DateTime.parse(map['lastLoginAt'])
+          : null,
     );
   }
+
+  @override
+  String toString() {
+    return 'User(id: $id, email: $email, name: $firstName $lastName)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is User && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }

@@ -37,14 +37,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
 
   Future<void> _saveUserLocally({
+    required String firstName,
+    required String lastName,
     required String email,
+    required String phoneNumber,
+    required String dateOfBirth,
     required String password,
     required String securityQuestion,
     required String securityAnswer,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('registeredEmail', email);
-    await prefs.setString('registeredPassword', password);
+
+    await prefs.setString('user_name', '$firstName $lastName');
+    await prefs.setString('registeredEmail', email.trim().toLowerCase());  // normalize email
+    await prefs.setString('user_phone', phoneNumber);
+    await prefs.setString('user_dob', dateOfBirth);
+    await prefs.setString('registeredPassword', password); // save password as is (no trim)
     await prefs.setString('securityQuestion', securityQuestion);
     await prefs.setString('securityAnswer', securityAnswer.toLowerCase().trim());
   }
@@ -74,7 +82,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await Future.delayed(const Duration(seconds: 1)); // Simulate delay
 
       await _saveUserLocally(
+        firstName: _formData['firstName'],
+        lastName: _formData['lastName'],
         email: _formData['email'],
+        phoneNumber: _formData['phoneNumber'],
+        dateOfBirth: _formData['dateOfBirth'],
         password: _formData['password'],
         securityQuestion: _formData['securityQuestion'],
         securityAnswer: _formData['securityAnswer'],
@@ -95,7 +107,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
+      appBar: AppBar(
+        title: const Text('Create Account'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/login');
+          },
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -199,7 +219,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   }
                   return null;
                 },
-                onSaved: (val) => _formData['password'] = val?.trim() ?? '',
+                onSaved: (val) => _formData['password'] = val ?? '', // don't trim password
               ),
               PasswordFormField(
                 label: 'Confirm Password',
@@ -213,7 +233,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   if (val != _formData['password']) return 'Passwords do not match';
                   return null;
                 },
-                onSaved: (val) => _formData['confirmPassword'] = val?.trim() ?? '',
+                onSaved: (val) => _formData['confirmPassword'] = val ?? '',
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(

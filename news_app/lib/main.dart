@@ -9,7 +9,7 @@ import 'features/news_app/presentation/views/login_screen.dart';
 import 'features/news_app/presentation/views/register_screen.dart';
 import 'features/news_app/presentation/views/forgot_password_screen.dart';
 import 'features/news_app/presentation/views/home_screen.dart';
-
+import 'features/news_app/presentation/views/settings_screen.dart';
 
 import 'features/news_app/data/services/local_auth_service.dart';
 import 'features/news_app/data/services/news_service.dart';
@@ -76,6 +76,9 @@ class MainApp extends StatelessWidget {
         }
         debugPrint('Invalid /home arguments: $args');
         return MaterialPageRoute(builder: (_) => const LoginScreen());
+
+      case '/settings':
+        return MaterialPageRoute(builder: (_) => const SettingsScreen());
 
       default:
         debugPrint('Unknown route: $name');

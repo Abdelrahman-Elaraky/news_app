@@ -4,14 +4,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String username;
   final int notificationCount;
   final VoidCallback onDrawerTap;
-  final VoidCallback onSearchTap;
+  final VoidCallback onSettingsTap;
 
   const CustomAppBar({
     super.key,
     required this.username,
     required this.notificationCount,
     required this.onDrawerTap,
-    required this.onSearchTap,
+    required this.onSettingsTap,
   });
 
   String getGreeting() {
@@ -36,10 +36,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               // Profile Picture
               const CircleAvatar(
                 radius: 24,
-                backgroundImage: AssetImage('assets/images/user.png'), // Replace with your asset or network image
+                backgroundImage: AssetImage('assets/images/user.png'),
               ),
               const SizedBox(width: 12),
-              
+
               // Greeting
               Expanded(
                 child: Column(
@@ -94,10 +94,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     onPressed: onDrawerTap,
                   ),
 
-                  // Search icon
+                  // Replaced search with settings icon
                   IconButton(
-                    icon: const Icon(Icons.search),
-                    onPressed: onSearchTap,
+                    icon: const Icon(Icons.settings),
+                    onPressed: onSettingsTap,
                   ),
                 ],
               ),

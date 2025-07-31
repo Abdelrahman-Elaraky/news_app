@@ -5,7 +5,6 @@ import '../widgets/password_form_field.dart';
 import '../../utils/validation_utils.dart';
 import '../views/home_screen.dart';
 
-
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -46,7 +45,11 @@ class _LoginScreenState extends State<LoginScreen> {
       // Auto login if credentials remembered
       final savedEmail = prefs.getString('registeredEmail');
       final savedPassword = prefs.getString('registeredPassword');
-      if (email == savedEmail && password == savedPassword) {
+
+      final normalizedEmail = email.trim().toLowerCase();
+      final savedEmailNormalized = savedEmail?.trim().toLowerCase();
+
+      if (normalizedEmail == savedEmailNormalized && password == savedPassword) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.pushReplacement(
             context,
@@ -76,10 +79,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     await Future.delayed(const Duration(seconds: 1)); // simulate server delay
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
+    final inputEmail = _formData['email']?.trim().toLowerCase();
+    final savedEmailNormalized = savedEmail?.trim().toLowerCase();
 
-    if (_formData['email'] == savedEmail && _formData['password'] == savedPassword) {
+    if (inputEmail == savedEmailNormalized && _formData['password'] == savedPassword) {
       if (_formData['rememberMe']) {
         await prefs.setBool('rememberMe', true);
         await prefs.setString('rememberedEmail', _formData['email']);
@@ -106,12 +109,17 @@ class _LoginScreenState extends State<LoginScreen> {
         const SnackBar(content: Text('Invalid credentials')),
       );
     }
+
+    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Login')),
+      appBar: AppBar(
+        title: const Text('Login'),
+        automaticallyImplyLeading: false,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -143,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 required: true,
                 initialValue: _formData['password'],
                 onChanged: (val) => _formData['password'] = val,
-                onSaved: (val) => _formData['password'] = val?.trim() ?? '',
+                onSaved: (val) => _formData['password'] = val ?? '', // no trim password
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'Password is required';
                   return null;

@@ -5,15 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/custom_app_bar.dart';
 import '../widgets/category_bar.dart';
-import '../widgets/error_empty_state.dart';
 
 import '../cubit/news_cubit.dart';
 import '../cubit/news_state.dart';
 
 import '../../data/models/article_model.dart';
 import '../../data/models/category_model.dart';
-import 'news_detail_screen.dart';
-import 'bookmarks_screen.dart'; // ✅ Import bookmarks screen
+import 'article_detail_screen.dart';
+import 'bookmarks_screen.dart';
+import 'search_screen.dart';
+ // 👈 Import SettingsScreen
 
 class HomeScreen extends StatefulWidget {
   final String email;
@@ -71,10 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     await _loadBookmarkCount();
 
-    // Optional SnackBar for user feedback
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   SnackBar(content: Text('News refreshed for ${selectedCategory.name}')),
-    // );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Feed refreshed!')),
+    );
   }
 
   Future<void> _logout() async {
@@ -146,12 +146,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 onTap: () async {
-                  Navigator.pop(context); // close drawer first
+                  Navigator.pop(context);
                   await Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const BookmarksScreen()),
                   );
-                  _loadBookmarkCount(); // update count on return
+                  _loadBookmarkCount();
                 },
               ),
               buildDrawerItem(
@@ -167,13 +167,16 @@ class _HomeScreenState extends State<HomeScreen> {
         username: widget.displayName,
         notificationCount: 3,
         onDrawerTap: () => _scaffoldKey.currentState?.openDrawer(),
-        onSearchTap: () {
-          // TODO: Search
+        onSettingsTap: () {
+          Navigator.pushNamed(context, '/settings'); // ✅ Navigate to settings screen
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Search action
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SearchScreen()),
+          );
         },
         child: const Icon(Icons.search),
       ),
@@ -189,17 +192,6 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         },
         builder: (context, state) {
-          if (state is NewsEmpty) {
-            return ErrorEmptyState(
-              image: 'assets/images/empty_state.png',
-              message: 'No articles found. Try again later!',
-              buttonText: 'Refresh',
-              onRetry: () {
-                _newsCubit.fetchByCategory(selectedCategory.id);
-              },
-            );
-          }
-
           final articles = state is NewsLoaded ? state.articles : <Article>[];
           final hasMore = state is NewsLoaded ? state.hasMore : false;
 
@@ -218,7 +210,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.only(left: 16, bottom: 8),
                   child: Text(
                     'Last updated: ${DateFormat('MMM d, hh:mm a').format(_lastRefreshedAt!)}',
-                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                    style:
+                        theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
                   ),
                 ),
               CategoryBar(
@@ -238,51 +231,77 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: theme.primaryColor,
                   backgroundColor: theme.scaffoldBackgroundColor,
                   displacement: 60,
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: hasMore ? articles.length + 1 : articles.length,
-                    itemBuilder: (context, index) {
-                      if (index >= articles.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Center(child: CircularProgressIndicator()),
+                  child: Builder(
+                    builder: (context) {
+                      if (state is NewsLoading && articles.isEmpty) {
+                        return ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 200),
+                            Center(child: CircularProgressIndicator()),
+                          ],
                         );
                       }
 
-                      final article = articles[index];
-                      return ListTile(
-                        title: Text(article.title),
-                        subtitle: Text(
-                          article.description.isNotEmpty
-                              ? article.description
-                              : 'No description available',
-                        ),
-                        leading: article.imageUrl != null
-                            ? Image.network(
-                                article.imageUrl!,
-                                width: 100,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.broken_image),
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return const SizedBox(
+                      if (articles.isEmpty) {
+                        return ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 200),
+                            Center(child: Text('No articles found.')),
+                          ],
+                        );
+                      }
+
+                      return ListView.builder(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: hasMore ? articles.length + 1 : articles.length,
+                        itemBuilder: (context, index) {
+                          if (index >= articles.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
+                          final article = articles[index];
+                          return ListTile(
+                            title: Text(article.title),
+                            subtitle: Text(
+                              article.description.isNotEmpty
+                                  ? article.description
+                                  : 'No description available',
+                            ),
+                            leading: article.imageUrl != null
+                                ? Image.network(
+                                    article.imageUrl!,
                                     width: 100,
                                     height: 60,
-                                    child: Center(
-                                        child: CircularProgressIndicator(strokeWidth: 2)),
-                                  );
-                                },
-                              )
-                            : const Icon(Icons.image_not_supported, size: 60),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => NewsDetailScreen(article: article),
-                            ),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const Icon(Icons.broken_image),
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return const SizedBox(
+                                        width: 100,
+                                        height: 60,
+                                        child: Center(
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : const Icon(Icons.image_not_supported, size: 60),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      NewsDetailScreen(article: article),
+                                ),
+                              );
+                            },
                           );
                         },
                       );

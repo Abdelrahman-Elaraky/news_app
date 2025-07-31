@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/article_model.dart';
 import '../cubit/news_cubit.dart';
-import 'bookmarks_screen.dart'; // Make sure you import your Bookmarks screen
+import 'bookmarks_screen.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final Article article;
@@ -15,14 +17,31 @@ class NewsDetailScreen extends StatefulWidget {
   State<NewsDetailScreen> createState() => _NewsDetailScreenState();
 }
 
-class _NewsDetailScreenState extends State<NewsDetailScreen> {
+class _NewsDetailScreenState extends State<NewsDetailScreen> with SingleTickerProviderStateMixin {
   late bool isBookmarked;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     isBookmarked = widget.article.isBookmarked;
     _checkIfBookmarked();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkIfBookmarked() async {
@@ -36,9 +55,10 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     await context.read<NewsCubit>().toggleBookmark(widget.article);
     final wasBookmarked = isBookmarked;
 
+    _animationController.forward().then((_) => _animationController.reverse());
+
     setState(() => isBookmarked = !isBookmarked);
 
-    // Only navigate to Bookmarks if it was just bookmarked
     if (!wasBookmarked && mounted) {
       Navigator.push(
         context,
@@ -58,6 +78,10 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     }
   }
 
+  void _shareArticle() {
+    Share.share('${widget.article.title} - ${widget.article.url}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final article = widget.article;
@@ -65,17 +89,25 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('News Detail'),
+        title: const Text('Article Detail'),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(
-              isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-              color: isBookmarked ? theme.colorScheme.primary : null,
+            icon: const Icon(Icons.share),
+            tooltip: 'Share Article',
+            onPressed: _shareArticle,
+          ),
+          ScaleTransition(
+            scale: _scaleAnimation,
+            child: IconButton(
+              icon: Icon(
+                isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+                color: isBookmarked ? theme.colorScheme.primary : null,
+              ),
+              tooltip: isBookmarked ? 'Remove Bookmark' : 'Add Bookmark',
+              onPressed: _toggleBookmark,
             ),
-            tooltip: isBookmarked ? 'Remove Bookmark' : 'Add Bookmark',
-            onPressed: _toggleBookmark,
-          )
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -89,25 +121,29 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            if (article.imageUrl != null)
-              ClipRRect(
+            // Hero animation + Cached image
+            Hero(
+              tag: article.id ?? article.url,
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  article.imageUrl!,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+                child: CachedNetworkImage(
+                  imageUrl: article.imageUrl ?? '',
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(
+                    height: 200,
+                    color: Colors.grey.shade200,
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    height: 200,
+                    color: Colors.grey.shade300,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image, size: 40),
+                  ),
                 ),
-              )
-            else
-              Container(
-                height: 180,
-                width: double.infinity,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.broken_image, size: 40),
               ),
+            ),
 
             const SizedBox(height: 16),
 
@@ -119,11 +155,20 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                   style: theme.textTheme.labelMedium?.copyWith(color: Colors.grey),
                 ),
                 Text(
-                  '${article.publishedAt.toLocal().toString().split(' ')[0]}',
+                  article.publishedAt.toLocal().toString().split(' ')[0],
                   style: theme.textTheme.labelMedium?.copyWith(color: Colors.grey),
                 ),
               ],
             ),
+
+            const SizedBox(height: 8),
+
+            if (article.author != null && article.author!.isNotEmpty)
+              Text(
+                'By ${article.author}',
+                style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
+              ),
+
             const SizedBox(height: 16),
 
             Text(

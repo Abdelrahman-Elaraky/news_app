@@ -7,12 +7,12 @@ class ErrorEmptyState extends StatelessWidget {
   final VoidCallback onRetry;
 
   const ErrorEmptyState({
-    Key? key,
+    super.key,
     required this.image,
     required this.message,
     required this.buttonText,
     required this.onRetry,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

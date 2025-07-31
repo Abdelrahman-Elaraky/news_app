@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/models/article_model.dart';
 import '../cubit/news_cubit.dart';
-import 'news_detail_screen.dart';
+import 'article_detail_screen.dart';
 
 class BookmarksScreen extends StatelessWidget {
   const BookmarksScreen({super.key});

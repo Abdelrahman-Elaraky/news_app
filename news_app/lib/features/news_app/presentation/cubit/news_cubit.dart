@@ -167,4 +167,9 @@ class NewsCubit extends Cubit<NewsState> {
     final bookmarks = await getBookmarkedArticles();
     return bookmarks.any((a) => a.url == article.url);
   }
+
+  /// Returns a copy of all currently loaded articles
+  List<Article> getAllArticles() {
+    return List.unmodifiable(_articles);
+  }
 }
