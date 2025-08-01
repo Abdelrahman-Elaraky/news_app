@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../widgets/custom_text_form_field.dart';
 import '../widgets/password_form_field.dart';
 import '../../utils/validation_utils.dart';
 import '../views/home_screen.dart';
+import '../../data/models/user_model.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,7 +44,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _formData['rememberMe'] = true;
       });
 
-      // Auto login if credentials remembered
       final savedEmail = prefs.getString('registeredEmail');
       final savedPassword = prefs.getString('registeredPassword');
 
@@ -51,16 +52,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (normalizedEmail == savedEmailNormalized && password == savedPassword) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => HomeScreen(email: email),
-            ),
-          );
+          _navigateToHome(email);
         });
       }
     }
   }
+
+ 
+ void _navigateToHome(String email) {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => HomeScreen(
+        user: User(
+          id: '1',             
+          email: email,
+          passwordHash: '',    
+          firstName: '',       
+          lastName: '',        
+        ),
+      ),
+    ),
+  );
+}
 
   Future<void> _submitLogin() async {
     FocusScope.of(context).unfocus();
@@ -77,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final savedEmail = prefs.getString('registeredEmail');
     final savedPassword = prefs.getString('registeredPassword');
 
-    await Future.delayed(const Duration(seconds: 1)); // simulate server delay
+    await Future.delayed(const Duration(seconds: 1)); // Simulate delay
 
     final inputEmail = _formData['email']?.trim().toLowerCase();
     final savedEmailNormalized = savedEmail?.trim().toLowerCase();
@@ -98,12 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
         const SnackBar(content: Text('Login successful')),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(email: _formData['email']),
-        ),
-      );
+      _navigateToHome(_formData['email']);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid credentials')),
@@ -151,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 required: true,
                 initialValue: _formData['password'],
                 onChanged: (val) => _formData['password'] = val,
-                onSaved: (val) => _formData['password'] = val ?? '', // no trim password
+                onSaved: (val) => _formData['password'] = val ?? '',
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'Password is required';
                   return null;

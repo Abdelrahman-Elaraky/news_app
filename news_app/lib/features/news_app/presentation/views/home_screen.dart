@@ -2,28 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../widgets/custom_app_bar.dart';
 import '../widgets/category_bar.dart';
-
 import '../cubit/news_cubit.dart';
 import '../cubit/news_state.dart';
-
 import '../../data/models/article_model.dart';
 import '../../data/models/category_model.dart';
 import 'article_detail_screen.dart';
 import 'bookmarks_screen.dart';
 import 'search_screen.dart';
- // 👈 Import SettingsScreen
+import '../../data/models/user_model.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String email;
-  final String? username;
+  // Instead of requiring email and username explicitly,
+  // pass the entire User object or get it from AuthCubit inside HomeScreen
+  // For now, let's pass User here:
+  final User user;
 
-  const HomeScreen({super.key, required this.email, this.username});
+  const HomeScreen({super.key, required this.user});
 
   String get displayName =>
-      username?.trim().isNotEmpty == true ? username! : email.split('@')[0];
+      user.firstName.trim().isNotEmpty ? user.firstName : user.email.split('@')[0];
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -165,10 +164,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       appBar: CustomAppBar(
         username: widget.displayName,
-        notificationCount: 3,
         onDrawerTap: () => _scaffoldKey.currentState?.openDrawer(),
         onSettingsTap: () {
-          Navigator.pushNamed(context, '/settings'); // ✅ Navigate to settings screen
+          Navigator.pushNamed(context, '/settings');
         },
       ),
       floatingActionButton: FloatingActionButton(
@@ -297,8 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      NewsDetailScreen(article: article),
+                                  builder: (_) => NewsDetailScreen(article: article),
                                 ),
                               );
                             },

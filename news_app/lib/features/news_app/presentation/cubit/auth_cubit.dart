@@ -10,6 +10,8 @@ class AuthCubit extends Cubit<AuthState> {
 
   AuthCubit(this._authService) : super(AuthInitial());
 
+  /// Attempts to log in user with [email] and [password].
+  /// If [rememberMe] is true, stores credentials for auto-login.
   Future<void> login(String email, String password, bool rememberMe) async {
     emit(AuthLoading());
 
@@ -29,6 +31,7 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthSuccess(user));
   }
 
+  /// Attempts to register a new user with [userData].
   Future<void> register(Map<String, dynamic> userData) async {
     emit(AuthLoading());
 
@@ -46,11 +49,13 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthRegistered(user));
   }
 
+  /// Logs out the current user.
   Future<void> logout() async {
     await _authService.logout();
     emit(AuthLoggedOut());
   }
 
+  /// Checks if user is already authenticated.
   Future<void> checkAuthStatus() async {
     final currentUserMap = await _authService.getCurrentUser();
     if (currentUserMap == null) {
@@ -62,6 +67,8 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthSuccess(user));
   }
 
+  /// Validates registration or profile form data.
+  /// Emits [AuthValidationError] if any validation errors exist.
   void validateForm(Map<String, dynamic> formData) {
     final errors = <String, String>{};
 
@@ -95,6 +102,7 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  /// Updates the user profile with [userData].
   Future<void> updateProfile(Map<String, dynamic> userData) async {
     emit(AuthLoading());
 
@@ -112,6 +120,7 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthSuccess(user));
   }
 
+  /// Changes user password from [oldPass] to [newPass].
   Future<void> changePassword(String oldPass, String newPass) async {
     emit(AuthLoading());
 
